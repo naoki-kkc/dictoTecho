@@ -16,24 +16,24 @@ let isInitializing = false;
 
 // ボタンが押された時に初めて辞書を読み込む（ページ初期化時のフリーズ防止）
 async function initKuroshiroIfNeeded() {
-  if (isKuroshiroReady || isInitializing) return;
-  isInitializing = true;
-  hiraganaTranscriptDiv.textContent = 'ひらがな変換エンジン（辞書）を読み込み中...';
+    if (isKuroshiroReady || isInitializing) return;
+    isInitializing = true;
+    hiraganaTranscriptDiv.textContent = 'ひらがな変換エンジン（辞書）を読み込み中...';
 
-  try {
-    await kuroshiro.init(new KuromojiAnalyzerClass({
-        // dictPath: 'https://cdn.jsdelivr.net/gh/takuyaa/kuromoji.js@master/dict'
-        dictPath: 'https://cdn.jsdelivr.net/gh/takuyaa/kuromoji.js@master/dict/'
-    }));
-    isKuroshiroReady = true;
-    console.log('Kuroshiro 準備完了');
-    hiraganaTranscriptDiv.textContent = '準備完了。音声入力を待っています...';
-  } catch (err) {
-    console.error('Kuroshiro 初期化エラー:', err);
-    hiraganaTranscriptDiv.textContent = '辞書の読み込みに失敗しました。';
-  } finally {
-    isInitializing = false;
-  }
+    try {
+        await kuroshiro.init(new KuromojiAnalyzerClass({
+            // ★自サーバー(GitHub Pages)内の dict フォルダを指定
+            dictPath: 'dict/'
+        }));
+        isKuroshiroReady = true;
+        console.log('Kuroshiro 準備完了');
+        hiraganaTranscriptDiv.textContent = '準備完了。音声入力を待っています...';
+    } catch (err) {
+        console.error('Kuroshiro 初期化エラー:', err);
+        hiraganaTranscriptDiv.textContent = '辞書の読み込みに失敗しました。';
+    } finally {
+        isInitializing = false;
+    }
 }
 
 // --- 2. 漢字変換候補取得関数 (Google CGI API) ---
