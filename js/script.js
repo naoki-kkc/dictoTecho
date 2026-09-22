@@ -3,24 +3,37 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const toggleBtn = document.getElementById('toggle-btn');
 const statusBadge = document.getElementById('status-badge');
 const transcriptDiv = document.getElementById('transcript');
-const hiraganaTranscriptDiv = document.getElementById('hiragana-transcript'); // 追加
+const hiraganaTranscriptDiv = document.getElementById('hiragana-transcript');
 const kanjiCandidatesDiv = document.getElementById('kanji-candidates');
 
-// --- 1. Kuroshiro（ひらがな変換器）の初期化 ---
+// --- 1. Kuroshiro（ひらがな変換器）の変数宣言 ---
 const KuroshiroClass = Kuroshiro.default || Kuroshiro;
 const KuromojiAnalyzerClass = KuromojiAnalyzer.default || KuromojiAnalyzer;
 
 const kuroshiro = new KuroshiroClass();
 let isKuroshiroReady = false;
+let isInitializing = false;
 
-kuroshiro.init(new KuromojiAnalyzerClass({
-  dictPath: 'https://cdn.jsdelivr.net/gh/takuyaa/kuromoji.js@master/dict/'
-})).then(() => {
-  isKuroshiroReady = true;
-  console.log('Kuroshiro (ひらがな変換機能) の準備が完了しました');
-}).catch(err => {
-  console.error('Kuroshiro 初期化エラー:', err);
-});
+// ボタンが押された時に初めて辞書を読み込む（ページ初期化時のフリーズ防止）
+async function initKuroshiroIfNeeded() {
+  if (isKuroshiroReady || isInitializing) return;
+  isInitializing = true;
+  hiraganaTranscriptDiv.textContent = 'ひらがな変換エンジン（辞書）を読み込み中...';
+
+  try {
+    await kuroshiro.init(new KuromojiAnalyzerClass({
+      dictPath: 'https://cdn.jsdelivr.net/gh/takuyaa/kuromoji.js@master/dict/'
+    }));
+    isKuroshiroReady = true;
+    console.log('Kuroshiro 準備完了');
+    hiraganaTranscriptDiv.textContent = '準備完了。音声入力を待っています...';
+  } catch (err) {
+    console.error('Kuroshiro 初期化エラー:', err);
+    hiraganaTranscriptDiv.textContent = '辞書の読み込みに失敗しました。';
+  } finally {
+    isInitializing = false;
+  }
+}
 
 // --- 2. 漢字変換候補取得関数 (Google CGI API) ---
 async function fetchKanjiCandidates(hiraganaText) {
@@ -74,7 +87,7 @@ async function fetchKanjiCandidates(hiraganaText) {
 
 // --- 3. Web Speech API の設定 ---
 if (!SpeechRecognition) {
-  alert('お使いのブラウザは Web Speech API に対応していません。');
+  alert('お使いのブラウザは Web Speech API に対応していません。Google Chrome等をご利用ください。');
 } else {
   const recognition = new SpeechRecognition();
   recognition.lang = 'ja-JP';
@@ -91,22 +104,16 @@ if (!SpeechRecognition) {
     }
 
     if (rawText.trim() !== '') {
-      // 1. リアルタイム音声認識結果（元のテキスト）を表示
       transcriptDiv.textContent = rawText;
 
       if (!isKuroshiroReady) {
-        hiraganaTranscriptDiv.textContent = 'ひらがな変換エンジン準備中...';
         return;
       }
 
       try {
-        // 2. 音声テキストをひらがなに変換して「ひらがな変換結果」枠に表示
         const hiraganaText = await kuroshiro.convert(rawText, { to: 'hiragana' });
         hiraganaTranscriptDiv.textContent = hiraganaText;
-
-        // 3. ひらがなを元に漢字候補を取得
         fetchKanjiCandidates(hiraganaText);
-
       } catch (err) {
         console.error('変換エラー:', err);
       }
@@ -117,7 +124,7 @@ if (!SpeechRecognition) {
     if (isListening) recognition.start();
   };
 
-  function toggleListening() {
+  async function toggleListening() {
     if (isListening) {
       isListening = false;
       recognition.stop();
@@ -127,6 +134,9 @@ if (!SpeechRecognition) {
       statusBadge.className = 'badge stopped';
     } else {
       isListening = true;
+      // ボタンが押されたらバックグラウンドで辞書読み込みを開始
+      initKuroshiroIfNeeded();
+      
       recognition.start();
       toggleBtn.textContent = '音声認識を停止';
       toggleBtn.classList.add('active');
