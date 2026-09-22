@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DictoTecho</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -14,36 +16,74 @@
     </header>
 
     <main>
-      <!-- ステータス表示 -->
+      <!-- ステータス ＆ 波形ビジュアライザー（1行に横並び配置） -->
       <div class="status-container">
         <button id="toggle-btn" class="btn">音声認識を開始</button>
         <span id="status-badge" class="badge stopped">停止中</span>
+        <div class="visualizer-container">
+          <canvas id="visualizer" width="300" height="40"></canvas>
+        </div>
       </div>
 
-      <!-- ① リアルタイム音声認識結果（元の音声入力内容） -->
+      <!-- リアルタイム音声認識結果 -->
       <section class="transcript-box">
         <label>リアルタイム音声認識結果</label>
         <div id="transcript" class="transcript-content">ここに話した言葉が表示されます...</div>
       </section>
 
-      <!-- ② ひらがな変換結果（追加） -->
+      <!-- ひらがな変換結果 -->
       <section class="transcript-box">
         <label>ひらがな変換結果</label>
         <div id="hiragana-transcript" class="transcript-content">ここにひらがな変換が表示されます...</div>
       </section>
 
-      <!-- ③ 漢字変換候補表示エリア -->
+      <!-- 漢字変換候補表示エリア -->
       <section class="kanji-box">
         <label>漢字変換候補（最大5件）</label>
         <div id="kanji-candidates" class="candidates-container">
           <span class="candidate-placeholder">音声入力待ち...</span>
         </div>
       </section>
+
+      <!-- デザイン区切り線に溶け込ませたアコーディオン -->
+      <section class="accordion-section">
+        <details class="software-accordion">
+          <summary class="divider-toggle" aria-label="使用ソフトウェア一覧"></summary>
+          <div class="accordion-content">
+            <p class="accordion-title">CREDITS / USED SOFTWARE &amp; APIs</p>
+            <ul class="software-list">
+              <li>
+                <a href="https://wicg.github.io/speech-api/" target="_blank" rel="noopener noreferrer">Web Speech API</a>
+                <span>（リアルタイム音声認識）</span>
+              </li>
+              <li>
+                <a href="https://github.com/hexojs/kuroshiro" target="_blank" rel="noopener noreferrer">Kuroshiro</a>
+                <span>（日本語かな変換ライブラリ）</span>
+              </li>
+              <li>
+                <a href="https://github.com/takuyaa/kuromoji.js" target="_blank" rel="noopener noreferrer">kuromoji.js</a>
+                <span>（形態素解析辞書エンジン）</span>
+              </li>
+              <li>
+                <a href="https://www.google.co.jp/ime/cgi/api.html" target="_blank" rel="noopener noreferrer">Google 日本語入力 CGI API</a>
+                <span>（漢字変換候補取得API）</span>
+              </li>
+              <li>
+                <a href="https://developer.mozilla.org/ja/docs/Web/API/Web_Audio_API" target="_blank" rel="noopener noreferrer">Web Audio API</a>
+                <span>（リアルタイム音声波形描画）</span>
+              </li>
+            </ul>
+          </div>
+        </details>
+      </section>
+
     </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
   <script src="js/script.js"></script>
 </body>
+
 </html>
