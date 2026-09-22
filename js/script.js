@@ -22,7 +22,7 @@ async function initKuroshiroIfNeeded() {
 
   try {
     await kuroshiro.init(new KuromojiAnalyzerClass({
-      dictPath: 'https://cdn.jsdelivr.net/gh/takuyaa/kuromoji.js@master/dict/'
+      dictPath: 'https://cdn.jsdelivr.net/gh/takuyaa/kuromoji.js@master/dict'
     }));
     isKuroshiroReady = true;
     console.log('Kuroshiro 準備完了');
