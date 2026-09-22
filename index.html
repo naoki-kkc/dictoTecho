@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DictoTecho</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>DictoTecho</h1>
+      <p class="subtitle">手帳のための音声入力アシスタント</p>
+    </header>
+
+    <main>
+      <!-- ステータス表示 -->
+      <div class="status-container">
+        <button id="toggle-btn" class="btn">音声認識を開始</button>
+        <span id="status-badge" class="badge stopped">停止中</span>
+      </div>
+
+      <!-- ① リアルタイム音声認識結果（元の音声入力内容） -->
+      <section class="transcript-box">
+        <label>リアルタイム音声認識結果</label>
+        <div id="transcript" class="transcript-content">ここに話した言葉が表示されます...</div>
+      </section>
+
+      <!-- ② ひらがな変換結果（追加） -->
+      <section class="transcript-box">
+        <label>ひらがな変換結果</label>
+        <div id="hiragana-transcript" class="transcript-content">ここにひらがな変換が表示されます...</div>
+      </section>
+
+      <!-- ③ 漢字変換候補表示エリア -->
+      <section class="kanji-box">
+        <label>漢字変換候補（最大5件）</label>
+        <div id="kanji-candidates" class="candidates-container">
+          <span class="candidate-placeholder">音声入力待ち...</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
+  <script src="js/script.js"></script>
+</body>
+</html>
