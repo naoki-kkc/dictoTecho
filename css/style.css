@@ -334,3 +334,78 @@ label {
   height: 100%;
   display: block;
 }
+
+/* 録音インジケーター（丸マーク） */
+.rec-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+/* 停止中：灰色の丸 */
+.rec-dot.stopped {
+  background-color: #adb5bd;
+  box-shadow: none;
+}
+
+/* マイク受付中：赤色の丸 ＋ 明滅アニメーション */
+.rec-dot.listening {
+  background-color: #ff4d4f;
+  box-shadow: 0 0 8px rgba(255, 77, 79, 0.6);
+  animation: recPulse 1.5s infinite ease-in-out;
+}
+
+/* 録音中のパルス（明滅）アニメーション */
+@keyframes recPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.7);
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+    box-shadow: 0 0 0 6px rgba(255, 77, 79, 0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+  }
+}
+
+/* 1行コンパクト表示エリア */
+.transcript-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ラベル部分（固定幅・目立たせる） */
+.row-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #6c757d;
+  width: 70px;
+  flex-shrink: 0;
+  border-right: 2px solid #e9ecef;
+  padding-right: 8px;
+}
+
+/* コンテンツ部分（余白を最小限にし、高さを1行分に凝縮） */
+.row-content {
+  font-size: 1.05rem;
+  color: #2b2d42;
+  flex-grow: 1;
+  line-height: 1.4;
+  word-break: break-all;
+  min-height: 1.4em; /* 最低1行分の高さを確保 */
+}

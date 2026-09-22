@@ -218,20 +218,24 @@ if (!SpeechRecognition) {
     if (isListening) {
       isListening = false;
       recognition.stop();
-      stopVisualizer(); // 【追加】波形描画の停止
+      stopVisualizer();
       toggleBtn.textContent = '音声認識を開始';
       toggleBtn.classList.remove('active');
-      statusBadge.textContent = '停止中';
-      statusBadge.className = 'badge stopped';
+      
+      // 停止中：灰色の丸に切り替え
+      statusBadge.className = 'rec-dot stopped';
+      statusBadge.title = '停止中';
     } else {
       isListening = true;
       try {
         recognition.start();
-        startVisualizer(); // 【追加】波形描画の開始
+        startVisualizer();
         toggleBtn.textContent = '音声認識を停止';
         toggleBtn.classList.add('active');
-        statusBadge.textContent = 'マイク受付中';
-        statusBadge.className = 'badge listening';
+        
+        // マイク受付中：赤色の丸（明滅）に切り替え
+        statusBadge.className = 'rec-dot listening';
+        statusBadge.title = 'マイク受付中';
       } catch (err) {
         console.error('音声認識スタートエラー:', err);
       }

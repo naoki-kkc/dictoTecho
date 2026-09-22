@@ -19,22 +19,23 @@
       <!-- ステータス ＆ 波形ビジュアライザー（1行に横並び配置） -->
       <div class="status-container">
         <button id="toggle-btn" class="btn">音声認識を開始</button>
-        <span id="status-badge" class="badge stopped">停止中</span>
+        <!-- 【変更】丸マーク表示エリア -->
+        <div id="status-badge" class="rec-dot stopped" title="停止中" aria-label="停止中"></div>
         <div class="visualizer-container">
           <canvas id="visualizer" width="300" height="40"></canvas>
         </div>
       </div>
 
-      <!-- リアルタイム音声認識結果 -->
-      <section class="transcript-box">
-        <label>リアルタイム音声認識結果</label>
-        <div id="transcript" class="transcript-content">ここに話した言葉が表示されます...</div>
+      <!-- リアルタイム音声認識結果 (1行コンパクト表示) -->
+      <section class="transcript-row">
+        <label class="row-label">音声入力</label>
+        <div id="transcript" class="row-content">ここに話した言葉が表示されます...</div>
       </section>
 
-      <!-- ひらがな変換結果 -->
-      <section class="transcript-box">
-        <label>ひらがな変換結果</label>
-        <div id="hiragana-transcript" class="transcript-content">ここにひらがな変換が表示されます...</div>
+      <!-- ひらがな変換結果 (1行コンパクト表示) -->
+      <section class="transcript-row">
+        <label class="row-label">ひらがな</label>
+        <div id="hiragana-transcript" class="row-content">ここにひらがな変換が表示されます...</div>
       </section>
 
       <!-- 漢字変換候補表示エリア -->
