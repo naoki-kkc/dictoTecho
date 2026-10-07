@@ -59,7 +59,7 @@ function drawWaveform() {
     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
     canvasCtx.lineWidth = 2;
-    canvasCtx.strokeStyle = '#4cc9f0'; // 波形カラー（明るいシアン）
+    canvasCtx.strokeStyle = '#4cc9f0';
     canvasCtx.beginPath();
 
     const sliceWidth = canvas.width * 1.0 / bufferLength;
@@ -85,31 +85,31 @@ function drawWaveform() {
   draw();
 }
 
-// --- 音声入力のビジュアライザー開始 (iOS Safari対策版) ---
+// --- 音声入力のビジュアライザー開始 (iOS CoreAudioロック回避版) ---
 async function startVisualizer() {
   if (!canvasCtx) return;
   try {
-    // 既存のContextが残っていれば安全にクローズ
-    if (audioCtx && audioCtx.state !== 'closed') {
-      await audioCtx.close();
+    // 1. マイクストリームが未取得の場合のみgetUserMediaを実行（何度も破棄・再生成しない）
+    if (!audioStream || !audioStream.active) {
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     }
 
-    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    
-    // iOS Safari互換のためのAudioContext初期化
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContextClass();
+    if (!audioCtx) {
+      audioCtx = new AudioContextClass();
+    }
 
-    // iOSでAudioContextがsuspended（中断）状態で始まる問題の対策
+    // 休止中のAudioContextを復帰
     if (audioCtx.state === 'suspended') {
       await audioCtx.resume();
     }
 
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-
-    microphone = audioCtx.createMediaStreamSource(audioStream);
-    microphone.connect(analyser);
+    if (!microphone) {
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      microphone = audioCtx.createMediaStreamSource(audioStream);
+      microphone.connect(analyser);
+    }
 
     drawWaveform();
   } catch (err) {
@@ -117,38 +117,22 @@ async function startVisualizer() {
   }
 }
 
-// --- 音声入力のビジュアライザー停止 (iOS Safari徹底解放版) ---
+// --- 音声入力のビジュアライザー停止 (ストリーム保持・サスペンド版) ---
 async function stopVisualizer() {
   if (animationId) {
     cancelAnimationFrame(animationId);
     animationId = null;
   }
 
-  // 1. マイクのトラックを停止してリソースを完全に開放
-  if (audioStream) {
-    audioStream.getTracks().forEach(track => {
-      track.stop();
-    });
-    audioStream = null;
-  }
-
-  // 2. 音声ソースを非接続化
-  if (microphone) {
-    microphone.disconnect();
-    microphone = null;
-  }
-
-  // 3. AudioContext をクローズ
-  if (audioCtx && audioCtx.state !== 'closed') {
+  // AudioContext を一時停止（suspend）して描画を止める
+  // ※ MediaStreamTrack.stop() でハードウェア接続を切断しないことでiOSの1分間ロックを防止
+  if (audioCtx && audioCtx.state === 'running') {
     try {
-      await audioCtx.close();
+      await audioCtx.suspend();
     } catch (e) {
-      console.error('AudioContext close error:', e);
+      console.error('AudioContext suspend error:', e);
     }
-    audioCtx = null;
   }
-
-  analyser = null;
 
   // キャンバス初期化（直線の描画）
   if (canvasCtx && canvas) {
@@ -177,14 +161,11 @@ async function fetchKanjiCandidates(hiraganaText) {
 
     if (data && data.length > 0 && data[0][1]) {
       const allCandidates = data[0][1];
-
-      // カタカナ（全角・半角）が含まれているか判定する正規表現
       const katakanaRegex = /[\u30A0-\u30FF\uFF65-\uFF9F]/;
 
       const filteredCandidates = allCandidates.filter(candidate => {
         const isSameAsInput = candidate.trim() === hiraganaText.trim();
         const hasKatakana = katakanaRegex.test(candidate);
-
         return !isSameAsInput && !hasKatakana;
       });
 
@@ -197,7 +178,6 @@ async function fetchKanjiCandidates(hiraganaText) {
           const item = document.createElement('div');
           item.className = 'candidate-item';
           item.textContent = kanji;
-
           kanjiCandidatesDiv.appendChild(item);
         });
       } else {
@@ -213,14 +193,13 @@ async function fetchKanjiCandidates(hiraganaText) {
   }
 }
 
-// --- 3. Web Speech API の設定 (iOS Safari使い捨てインスタンス対策版) ---
+// --- 3. Web Speech API の設定 (iOS Safari完全最適化版) ---
 if (!SpeechRecognition) {
   alert('お使いのブラウザは Web Speech API に対応していません。');
 } else {
   let recognition = null;
   let isListening = false;
 
-  // 音声認識インスタンスの生成関数
   function createRecognition() {
     const rec = new SpeechRecognition();
     rec.lang = 'ja-JP';
@@ -253,7 +232,6 @@ if (!SpeechRecognition) {
 
     rec.onend = () => {
       console.log('SpeechRecognition ended');
-      // 意図せず切れた場合のみ自動再起動
       if (isListening && recognition === rec) {
         try {
           rec.start();
@@ -271,15 +249,15 @@ if (!SpeechRecognition) {
     if (isListening) {
       isListening = false;
 
-      // 1. Web Speech API を強制即時中断 (abort)
+      // 1. 音声認識を即時中断
       if (recognition) {
         try {
-          recognition.abort(); // stop() ではなく abort() で即時破棄
+          recognition.abort();
         } catch (e) {}
-        recognition = null; // インスタンスを破棄
+        recognition = null;
       }
 
-      // 2. 波形ビジュアライザーの停止
+      // 2. 波形描画を休止（マイク自体は破棄せず維持）
       await stopVisualizer();
 
       toggleBtn.textContent = '音声認識を開始';
@@ -290,11 +268,15 @@ if (!SpeechRecognition) {
       isListening = true;
 
       try {
-        // 音声認識インスタンスを新しく作ってからスタート
+        // 1. ビジュアライザー（マイク接続）の準備
+        await startVisualizer();
+
+        // 2. iOS CoreAudio のルーティング安定化のため 300ms 待機
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 3. 音声認識を開始
         recognition = createRecognition();
         recognition.start();
-
-        await startVisualizer();
 
         toggleBtn.textContent = '音声認識を停止';
         toggleBtn.classList.add('active');
