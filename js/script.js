@@ -213,70 +213,91 @@ async function fetchKanjiCandidates(hiraganaText) {
   }
 }
 
-// --- 3. Web Speech API の設定 ---
+// --- 3. Web Speech API の設定 (iOS Safari使い捨てインスタンス対策版) ---
 if (!SpeechRecognition) {
   alert('お使いのブラウザは Web Speech API に対応していません。');
 } else {
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'ja-JP';
-  recognition.interimResults = true;
-  recognition.continuous = true;
-
+  let recognition = null;
   let isListening = false;
 
-  recognition.onresult = async (event) => {
-    let rawText = '';
+  // 音声認識インスタンスの生成関数
+  function createRecognition() {
+    const rec = new SpeechRecognition();
+    rec.lang = 'ja-JP';
+    rec.interimResults = true;
+    rec.continuous = true;
 
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      rawText += event.results[i][0].transcript;
-    }
-
-    if (rawText.trim() !== '') {
-      transcriptDiv.textContent = rawText;
-
-      if (!isKuroshiroReady) {
-        return;
+    rec.onresult = async (event) => {
+      let rawText = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        rawText += event.results[i][0].transcript;
       }
 
-      try {
-        const hiraganaText = await kuroshiro.convert(rawText, { to: 'hiragana' });
-        hiraganaTranscriptDiv.textContent = hiraganaText;
-        fetchKanjiCandidates(hiraganaText);
-      } catch (err) {
-        console.error('変換エラー:', err);
+      if (rawText.trim() !== '') {
+        transcriptDiv.textContent = rawText;
+        if (!isKuroshiroReady) return;
+
+        try {
+          const hiraganaText = await kuroshiro.convert(rawText, { to: 'hiragana' });
+          hiraganaTranscriptDiv.textContent = hiraganaText;
+          fetchKanjiCandidates(hiraganaText);
+        } catch (err) {
+          console.error('変換エラー:', err);
+        }
       }
-    }
-  };
+    };
 
-  recognition.onend = () => {
-    if (isListening) recognition.start();
-  };
+    rec.onerror = (event) => {
+      console.warn('SpeechRecognition Error:', event.error);
+    };
 
-  // --- 音声入力のオン/オフ切替 (iOS Safari対策版・唯一の定義) ---
+    rec.onend = () => {
+      console.log('SpeechRecognition ended');
+      // 意図せず切れた場合のみ自動再起動
+      if (isListening && recognition === rec) {
+        try {
+          rec.start();
+        } catch (e) {
+          console.error('Re-start error:', e);
+        }
+      }
+    };
+
+    return rec;
+  }
+
+  // --- 音声入力のオン/オフ切替 ---
   async function toggleListening() {
     if (isListening) {
       isListening = false;
-      
-      try {
-        recognition.stop();
-      } catch (e) {}
 
+      // 1. Web Speech API を強制即時中断 (abort)
+      if (recognition) {
+        try {
+          recognition.abort(); // stop() ではなく abort() で即時破棄
+        } catch (e) {}
+        recognition = null; // インスタンスを破棄
+      }
+
+      // 2. 波形ビジュアライザーの停止
       await stopVisualizer();
 
       toggleBtn.textContent = '音声認識を開始';
       toggleBtn.classList.remove('active');
-      
       statusBadge.className = 'rec-dot stopped';
       statusBadge.title = '停止中';
     } else {
       isListening = true;
+
       try {
+        // 音声認識インスタンスを新しく作ってからスタート
+        recognition = createRecognition();
         recognition.start();
+
         await startVisualizer();
 
         toggleBtn.textContent = '音声認識を停止';
         toggleBtn.classList.add('active');
-        
         statusBadge.className = 'rec-dot listening';
         statusBadge.title = 'マイク受付中';
       } catch (err) {
