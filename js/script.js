@@ -6,7 +6,7 @@ const transcriptDiv = document.getElementById('transcript');
 const hiraganaTranscriptDiv = document.getElementById('hiragana-transcript');
 const kanjiCandidatesDiv = document.getElementById('kanji-candidates');
 
-// --- 【追加】波形描画用要素と Web Audio API 変数 ---
+// --- 波形描画用要素と Web Audio API 変数 ---
 const canvas = document.getElementById('visualizer');
 const canvasCtx = canvas ? canvas.getContext('2d') : null;
 
@@ -44,7 +44,7 @@ async function initKuroshiroIfNeeded() {
   }
 }
 
-// --- 【追加】音声波形の描画ロジック ---
+// --- 音声波形の描画ロジック ---
 function drawWaveform() {
   if (!analyser || !canvasCtx) return;
 
@@ -85,12 +85,26 @@ function drawWaveform() {
   draw();
 }
 
-// 音声入力のビジュアライザー開始
+// --- 音声入力のビジュアライザー開始 (iOS Safari対策版) ---
 async function startVisualizer() {
   if (!canvasCtx) return;
   try {
+    // 既存のContextが残っていれば安全にクローズ
+    if (audioCtx && audioCtx.state !== 'closed') {
+      await audioCtx.close();
+    }
+
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // iOS Safari互換のためのAudioContext初期化
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContextClass();
+
+    // iOSでAudioContextがsuspended（中断）状態で始まる問題の対策
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
 
@@ -103,15 +117,40 @@ async function startVisualizer() {
   }
 }
 
-// 音声入力のビジュアライザー停止
-function stopVisualizer() {
-  if (animationId) cancelAnimationFrame(animationId);
-  if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
-  if (audioStream) {
-    audioStream.getTracks().forEach(track => track.stop());
+// --- 音声入力のビジュアライザー停止 (iOS Safari徹底解放版) ---
+async function stopVisualizer() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
   }
-  
-  // キャンバス初期化（直線を描画）
+
+  // 1. マイクのトラックを停止してリソースを完全に開放
+  if (audioStream) {
+    audioStream.getTracks().forEach(track => {
+      track.stop();
+    });
+    audioStream = null;
+  }
+
+  // 2. 音声ソースを非接続化
+  if (microphone) {
+    microphone.disconnect();
+    microphone = null;
+  }
+
+  // 3. AudioContext をクローズ
+  if (audioCtx && audioCtx.state !== 'closed') {
+    try {
+      await audioCtx.close();
+    } catch (e) {
+      console.error('AudioContext close error:', e);
+    }
+    audioCtx = null;
+  }
+
+  analyser = null;
+
+  // キャンバス初期化（直線の描画）
   if (canvasCtx && canvas) {
     canvasCtx.fillStyle = '#1e1e24';
     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
@@ -155,7 +194,6 @@ async function fetchKanjiCandidates(hiraganaText) {
 
       if (candidates.length > 0) {
         candidates.forEach(kanji => {
-          // リスト形式の要素を生成（クリップボードコピー機能は削除）
           const item = document.createElement('div');
           item.className = 'candidate-item';
           item.textContent = kanji;
@@ -214,30 +252,36 @@ if (!SpeechRecognition) {
     if (isListening) recognition.start();
   };
 
-  function toggleListening() {
+  // --- 音声入力のオン/オフ切替 (iOS Safari対策版・唯一の定義) ---
+  async function toggleListening() {
     if (isListening) {
       isListening = false;
-      recognition.stop();
-      stopVisualizer();
+      
+      try {
+        recognition.stop();
+      } catch (e) {}
+
+      await stopVisualizer();
+
       toggleBtn.textContent = '音声認識を開始';
       toggleBtn.classList.remove('active');
       
-      // 停止中：灰色の丸に切り替え
       statusBadge.className = 'rec-dot stopped';
       statusBadge.title = '停止中';
     } else {
       isListening = true;
       try {
         recognition.start();
-        startVisualizer();
+        await startVisualizer();
+
         toggleBtn.textContent = '音声認識を停止';
         toggleBtn.classList.add('active');
         
-        // マイク受付中：赤色の丸（明滅）に切り替え
         statusBadge.className = 'rec-dot listening';
         statusBadge.title = 'マイク受付中';
       } catch (err) {
         console.error('音声認識スタートエラー:', err);
+        isListening = false;
       }
 
       initKuroshiroIfNeeded();
